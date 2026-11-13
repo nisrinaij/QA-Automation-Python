@@ -2,8 +2,10 @@ import re
 from playwright.sync_api import Page, Locator
 
 class PIMPage:
-    def __init__(self, page: Page):
+    def __init__(self, page):
         self.page = page
+        # Define the base locator for your table rows here
+        self.table_row = page.locator(".oxd-table-row")
 
 
     ## PAGE NAVIGATION
@@ -36,13 +38,15 @@ class PIMPage:
         # Targets the generic container for each employee record (works for both list and grid views)
         return self.page.locator(".oxd-table-card, .oxd-grid-item").filter(has_text=exact_match_pattern)
 
-    def click_edit_employee(self, emp_id: str):
-        """Clicks the Edit (pencil) button for a specific employee ID."""
-        card = self.get_employee_card_by_id(emp_id)
-        # Locates the specific edit icon button scoped only inside that employee's card
-        card.locator("button:has(i.bi-pencil-fill), button:has(i.oxd-icon.bi-pencil)").click()
+    def click_edit(self, id_num: str):
+        """Clicks the Edit (pencil) button for a specific employee based on unique identifying data"""
+        # 1. Filter the rows to find the one containing the specific target data
+        row = self.table_row.filter(has_text=id_num)
+        
+        # 2. Click the CSS icon approach (Option 1) inside that exact row
+        row.locator(".bi-pencil-fill").click()
 
-    def click_delete_employee(self, emp_id: str):
+    def click_delete(self, emp_id: str):
         """Clicks the Delete (trash) button for a specific employee ID."""
         card = self.get_employee_card_by_id(emp_id)
         # Locates the specific delete icon button scoped only inside that employee's card
@@ -89,3 +93,17 @@ class PIMPage:
     def search_by_job_title(self, job_title: str):
         self.page.get_by_text("-- Select --").nth(1).click()
         self.page.get_by_role("option", name= job_title).click() 
+
+
+    # notes: after update the edit the page is still in the edit page, double delete confirmation, habis delete masih di page yang sama jadi harus reset dulu
+
+    # page.get_by_role("link", name="PIM").click()
+    # page.get_by_role("textbox", name="Type for hints...").first.click()
+    # page.get_by_role("textbox", name="Type for hints...").first.fill("molly")
+    # page.get_by_role("button", name="Search").click()
+    # page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(4).click()
+    # page.get_by_text("×Are you Sure?The selected").click()
+    # page.get_by_role("button", name=" Yes, Delete").click()
+    # page.get_by_role("textbox", name="Type for hints...").first.click()
+    # page.get_by_role("button", name="Search").click()
+    # page.get_by_role("button", name="Reset").click()

@@ -1,12 +1,65 @@
 import os
 import pytest
 import config
+import re
 
 import threading
 import time
 import psutil
 
+from pathlib import Path
 from config import BASE_URL, LOGIN_URL, AUTH_FILE, DASHBOARD_URL
+
+
+def pytest_configure(config):
+    """
+    Automatically configure HTML reporting based on the test execution.
+
+    Full suite:
+        reports/full_suite_test.html
+
+    Individual test file:
+        reports/<test_file>/<test_file>.html
+    """
+
+    # Check whether pytest-html is installed.
+    if not config.pluginmanager.hasplugin("html"):
+        return
+
+    # Respect a manually specified --html argument.
+    if config.option.htmlpath:
+        return
+
+    # Identify Python test files passed through the CLI.
+    test_files = []
+
+    for arg in config.args:
+        # Remove test node identifiers, if present.
+        test_path = arg.split("::")[0]
+        path = Path(test_path)
+
+        if path.suffix == ".py" and path.exists():
+            test_files.append(path)
+
+    # Determine report location.
+    if len(test_files) == 1:
+        test_name = test_files[0].stem
+
+        report_dir = Path("reports") / test_name
+        report_name = f"{test_name}.html"
+
+    else:
+        report_dir = Path("reports")
+        report_name = "full_suite_test.html"
+
+    # Create report directory.
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    # Configure pytest-html.
+    config.option.htmlpath = str(report_dir / report_name)
+
+    # Keep screenshots as external files.
+    config.option.self_contained_html = False
 
 @pytest.fixture
 def login_page(playwright, browser):
@@ -47,35 +100,73 @@ def page(playwright, browser):
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    Pytest hook used to capture a screenshot when a test fails.
+    Capture screenshots when a test fails and attach them
+    to the corresponding pytest-html report.
     """
-    # 1. Retrieve the HTML plugin
-    pytest_html = item.config.pluginmanager.getplugin("html")
-    
+
     outcome = yield
     report = outcome.get_result()
-    
-    # 2. Initialize the extras list for the HTML report
-    extras = getattr(report, "extras", [])
 
-    # Capture screenshot only when the test itself fails.
-    if report.when == "call" and report.failed:
-        page = item.funcargs.get("page")
-        if page:
-            screenshot_dir = "reports/screenshots"
-            os.makedirs(screenshot_dir, exist_ok=True)
-            
-            screenshot_filename = f"{item.name}.png"
-            screenshot_path = os.path.join(screenshot_dir, screenshot_filename)
-            
-            page.screenshot(path=screenshot_path, full_page=True)
-            
-            # 3. Attach the screenshot to the report using a relative path
-            if pytest_html is not None:
-                extras.append(pytest_html.extras.image(f"screenshots/{screenshot_filename}"))
-                
-    # 4. Save the extras back to the report object
-    report.extras = extras
+    # Only capture screenshots for test execution failures.
+    if report.when != "call" or not report.failed:
+        return
+
+    # Check for available Playwright page fixtures.
+    page = item.funcargs.get("page")
+
+    if page is None:
+        page = item.funcargs.get("login_page")
+
+    if page is None:
+        return
+
+    # Get the configured HTML report location.
+    html_report_path = item.config.option.htmlpath
+
+    if not html_report_path:
+        return
+
+    # Determine screenshot directory.
+    report_dir = Path(html_report_path).parent
+    screenshot_dir = report_dir / "screenshots"
+
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate a safe screenshot filename.
+    safe_test_name = re.sub(
+        r"[^a-zA-Z0-9_.-]",
+        "_",
+        item.nodeid
+    )
+
+    screenshot_filename = f"{safe_test_name}.png"
+
+    screenshot_path = screenshot_dir / screenshot_filename
+
+    try:
+        # Capture screenshot.
+        page.screenshot(
+            path=str(screenshot_path),
+            full_page=True
+        )
+
+        # Attach screenshot to HTML report.
+        pytest_html = item.config.pluginmanager.getplugin("html")
+
+        if pytest_html is not None:
+            extras = getattr(report, "extras", [])
+
+            extras.append(
+                pytest_html.extras.image(
+                    f"screenshots/{screenshot_filename}"
+                )
+            )
+
+            report.extras = extras
+
+    except Exception as error:
+        print(f"Failed to capture screenshot: {error}")
+
 
 @pytest.fixture(scope="session", autouse=True)
 def monitor_system_resources():

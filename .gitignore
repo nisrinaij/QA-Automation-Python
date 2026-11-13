@@ -222,3 +222,4 @@ __marimo__/
 
 # Pytest
 .pytest_cache/
+storageState.json
