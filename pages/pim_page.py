@@ -14,6 +14,9 @@ class PIMPage:
     def goto_pim(self):
         self.page.get_by_role("link", name="PIM").click()
 
+    def goto_list(self):
+        self.page.goto("https://opensource-demo.orangehrmlive.com/web/index.php/pim/viewEmployeeList")
+
     def emp_list_tab(self):
         self.page.get_by_role("link", name="Employee List").click()
 
@@ -45,12 +48,12 @@ class PIMPage:
         
         # 2. Click the CSS icon approach (Option 1) inside that exact row
         row.locator(".bi-pencil-fill").click()
-
-    def click_delete(self, emp_id: str):
-        """Clicks the Delete (trash) button for a specific employee ID."""
-        card = self.get_employee_card_by_id(emp_id)
-        # Locates the specific delete icon button scoped only inside that employee's card
-        card.locator("button:has(i.bi-trash-fill), button:has(i.oxd-icon.bi-trash)").click()
+        
+    def click_delete(self, id_num: str):
+        """Clicks the Delete (trash) button for a specific employee based on unique identifying data."""
+        row = self.table_row.filter(has_text=id_num)
+        row.locator(".bi-trash").click()
+        self.page.get_by_role("button", name=" Yes, Delete").click()
 
 
     ## EMPLOYEE ADDITION
@@ -94,16 +97,3 @@ class PIMPage:
         self.page.get_by_text("-- Select --").nth(1).click()
         self.page.get_by_role("option", name= job_title).click() 
 
-
-    # notes: after update the edit the page is still in the edit page, double delete confirmation, habis delete masih di page yang sama jadi harus reset dulu
-
-    # page.get_by_role("link", name="PIM").click()
-    # page.get_by_role("textbox", name="Type for hints...").first.click()
-    # page.get_by_role("textbox", name="Type for hints...").first.fill("molly")
-    # page.get_by_role("button", name="Search").click()
-    # page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(4).click()
-    # page.get_by_text("×Are you Sure?The selected").click()
-    # page.get_by_role("button", name=" Yes, Delete").click()
-    # page.get_by_role("textbox", name="Type for hints...").first.click()
-    # page.get_by_role("button", name="Search").click()
-    # page.get_by_role("button", name="Reset").click()

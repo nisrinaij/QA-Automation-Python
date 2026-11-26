@@ -8,7 +8,7 @@ VALID_USERNAME = "Admin"
 VALID_PASSWORD = "admin123"
 
 # --- Employee Input ---
-TEST_EMP_ID = "0499123"
+TEST_EMP_ID = "049912345"
 TEST_FIRST_NAME = "Molly"
 TEST_LAST_NAME = "Gunn"
 

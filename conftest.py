@@ -62,39 +62,51 @@ def pytest_configure(config):
     config.option.self_contained_html = False
 
 @pytest.fixture
-def login_page(playwright, browser):
-    """
-    Fresh website page to test login features.
-    """
-    # Set custom test ID attribute using the native playwright fixture
+def login_page(browser, playwright):
     playwright.selectors.set_test_id_attribute("data-test")
-    
-    context = browser.new_context()
+
+    context = browser.new_context(
+        storage_state=None
+    )
+
     page = context.new_page()
-    
+
     yield page
-    
+
     context.close()
 
 @pytest.fixture
 def page(playwright, browser):
-    """
-    Logged-in page to test features that require authentication.
-    """
+
     if not os.path.exists(config.AUTH_FILE):
         pytest.fail(f"File '{config.AUTH_FILE}' not found.")
 
     playwright.selectors.set_test_id_attribute("data-test")
-    
-    # Load the saved login session
-    context = browser.new_context(storage_state=config.AUTH_FILE)
+
+    context = browser.new_context(
+        storage_state=config.AUTH_FILE
+    )
+
     page = context.new_page()
-    
-    # Tell the browser to go to the target page before handing it to the test
-    page.goto(config.DASHBOARD_URL) 
-    
+
+    # Navigate to dashboard
+    page.goto(
+        config.DASHBOARD_URL,
+        wait_until="domcontentloaded",
+        timeout=60000
+    )
+
+    # Verify dashboard is loaded
+    page.get_by_role(
+        "heading",
+        name="Dashboard"
+    ).wait_for(
+        state="visible",
+        timeout=30000
+    )
+
     yield page
-    
+
     context.close()
 
 @pytest.hookimpl(hookwrapper=True)

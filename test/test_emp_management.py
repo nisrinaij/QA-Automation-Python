@@ -43,16 +43,14 @@ def test_add_new_emp(page: Page):
     pim.fill_last_name(TEST_LAST_NAME)
     pim.fill_employee_id(TEST_EMP_ID)
     pim.save()
-    
-    # Wait for the success toast to appear and disappear before navigating away
-    expect(page.locator(".oxd-toast--success")).to_be_visible()
-    expect(page.locator(".oxd-toast--success")).to_be_hidden()
+    page.wait_for_load_state("networkidle")  # Wait for the page to finish loading after save
     
     # 2. Search for the employee
     pim.emp_list_tab()
     pim.click_reset() # Good practice to reset filters first
     pim.search_by_id(TEST_EMP_ID)
     pim.click_search()
+    page.wait_for_load_state("networkidle")  # Wait for the page to finish loading after search
     
     # 3. Assert the employee shows up in the table
     expect(page.get_by_role("cell", name=TEST_EMP_ID)).to_be_visible()
@@ -70,10 +68,30 @@ def test_edit_emp(page: Page):
     
     # Click the edit button using your POM method
     pim.click_edit(TEST_EMP_ID)
-    pim.fill_first_name("Molly-Edited")
+    pim.fill_middle_name("Edited")
     pim.save()
+    page.wait_for_load_state("networkidle")  # Wait for the page to finish loading after save
     
     # Assert we navigated to the Personal Details (Edit) page
+    pim.goto_list()
     pim.search_by_id(TEST_EMP_ID)
     pim.click_search()
-    expect(page.get_by_role("cell", name="Molly-Edited")).to_be_visible()
+    expect(page.get_by_role("cell", name="Molly Edited")).to_be_visible()
+
+def test_delete_emp(page: Page):
+    """TC-emp-05: Successfully deleting the employee and asserting by searching."""
+    
+    pim = PIMPage(page)
+    pim.goto_pim()
+    pim.emp_list_tab()
+    
+    # Search for the specific employee created in TC3
+    pim.search_by_id(TEST_EMP_ID)
+    pim.click_search()
+    
+    # Click the delete button using your POM method
+    pim.click_delete(TEST_EMP_ID)
+    page.wait_for_load_state("networkidle")  # Wait for the page to finish loading after delete
+    
+    # Assert that no results are found (the table should be empty)
+    expect(page.get_by_text(TEST_EMP_ID)).not_to_be_visible()
